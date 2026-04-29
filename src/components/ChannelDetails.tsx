@@ -143,6 +143,7 @@ export function ChannelDetails({ onBack, channelName, channelData, onUpdateDetai
 
   const toggleMonth = async (month: string) => {
     const isExpanding = !expandedMonths.has(month);
+    console.log(`[ChannelDetails] Toggling month: ${month}, expanding: ${isExpanding}`);
     
     setExpandedMonths(prev => {
       const next = new Set(prev);
@@ -158,12 +159,18 @@ export function ChannelDetails({ onBack, channelName, channelData, onUpdateDetai
     if (isExpanding && onFetchDailyData) {
       const row = channelData.find(d => d.month === month);
       const hasDailyData = row?.dailyData && row.dailyData.length > 0;
-      const isShopeeApi = channelName === 'Matriz (SP)'; // Shopee já traz no sync inicial por enquanto
+      const isShopeeApi = channelName === 'Matriz (SP)';
       
+      console.log(`[ChannelDetails] Checking daily data for ${channelName} - ${month}: hasDailyData=${hasDailyData}, isShopeeApi=${isShopeeApi}`);
+
       if (!hasDailyData && !isShopeeApi) {
+        console.log(`[ChannelDetails] Requesting daily data fetch for ${channelName}...`);
         setLoadingDaily(prev => new Set(prev).add(month));
         try {
           await onFetchDailyData(channelName, month);
+          console.log(`[ChannelDetails] Daily data fetch completed for ${month}`);
+        } catch (e) {
+          console.error(`[ChannelDetails] Error fetching daily data:`, e);
         } finally {
           setLoadingDaily(prev => {
             const next = new Set(prev);

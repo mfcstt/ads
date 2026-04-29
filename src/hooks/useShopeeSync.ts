@@ -20,7 +20,10 @@ export function useShopeeSync(
 
     const fetchShopeeData = async () => {
       try {
-        // Busca o saldo sempre que o sincronizador rodar (mais robusto)
+        const now = new Date();
+        const currentMonthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // Busca o saldo sempre
         try {
           console.log('[Shopee Sync] Buscando saldo atual...');
           const balRes = await fetch('/api/shopee/balance?accountKey=matriz');
@@ -28,16 +31,11 @@ export function useShopeeSync(
             const balData = await balRes.json();
             console.log('[Shopee Sync] Saldo recebido:', balData.total_balance);
             setShopeeBalance(balData.total_balance ?? 0);
-          } else {
-            console.error('[Shopee Sync] Erro na resposta do saldo:', balRes.status);
           }
         } catch (e) {
           console.error('[Shopee Sync] Erro ao buscar saldo:', e);
         }
 
-        const now = new Date();
-        const currentMonthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        
         // Sincronizamos apenas meses passados e o atual
         const monthsToProcess = data.filter(m => m.month <= currentMonthId);
 
@@ -46,8 +44,11 @@ export function useShopeeSync(
         ];
 
         for (const monthData of monthsToProcess) {
+          const isCurrentMonth = monthData.month === currentMonthId;
           const fetchedKey = `${monthData.month}-synced`;
-          if (shopeeDataFetched.current.has(fetchedKey)) continue;
+          
+          // Se não for o mês atual e já foi buscado, pula
+          if (!isCurrentMonth && shopeeDataFetched.current.has(fetchedKey)) continue;
 
           let anyAccountSynced = false;
 
@@ -168,5 +169,7 @@ export function useShopeeSync(
     };
 
     fetchShopeeData();
+    const interval = setInterval(fetchShopeeData, 600000); // 10 min
+    return () => clearInterval(interval);
   }, [loadStatus, data.length]); 
 }

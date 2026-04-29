@@ -14,6 +14,7 @@ import { usePloomesSync } from './hooks/usePloomesSync';
 import { useShopeeSync } from './hooks/useShopeeSync';
 import { getCurrentMonthIdForData } from './lib/monthSelection';
 import { PLOOMES_TASKS } from './config/ploomesTasks';
+import { AdsService } from './services/api';
 import { Calendar, CloudOff, Loader2 } from 'lucide-react';
 // import { motion } from 'motion/react';
 
@@ -380,24 +381,40 @@ function App() {
 
   const handleFetchDailyData = async (channelName: string, monthStr: string) => {
     const mainMonthId = parseMonthString(monthStr);
-    if (!mainMonthId) return;
+    if (!mainMonthId) {
+      console.warn(`[App] Formato de mês inválido: ${monthStr}`);
+      return;
+    }
+    
+    // Identificar se o canal selecionado é de uma plataforma que usa Ploomes
+    // Buscamos a entry correspondente no mês atual para saber a plataforma
+    const currentEntry = currentMonthData.entries.find(e => e.category.toUpperCase() === channelName.toUpperCase());
+    const isPloomesPlatform = currentEntry && (currentEntry.platform === 'Google Ads' || currentEntry.platform === 'Meta Ads' || currentEntry.platform === 'Vowt Performance');
+
+    if (!isPloomesPlatform) {
+      console.log(`[App] Canal ${channelName} (${currentEntry?.platform}) não utiliza Ploomes para dados diários.`);
+      return;
+    }
 
     // Localizar a task correspondente ao canal
     const task = PLOOMES_TASKS.find(t => channelName.toUpperCase().includes(t.category.toUpperCase()));
 
     if (task) {
-      console.log(`[App] Iniciando busca diária Ploomes para ${channelName} em ${monthStr}`);
-      await AdsService.fetchPloomesDailyForMonth(
-        mainMonthId,
-        task,
-        (date, field, value) => {
-          handleUpdateDailyDetail(channelName, monthStr, date, field as keyof DailyPerformanceData, value);
-        }
-      );
-    } else if (channelName.toLowerCase().includes('shopee') || channelName === 'Matriz (SP)') {
-      // Para Shopee, a rota de performance já traz os dados diários. 
-      // Se não estiverem lá, podemos forçar um refresh se necessário.
-      console.log(`[App] Verificando dados diários Shopee para ${channelName}`);
+      console.log(`[App] Iniciando busca diária Ploomes para ${channelName} (Task: ${task.category}) em ${monthStr}`);
+      try {
+        await AdsService.fetchPloomesDailyForMonth(
+          mainMonthId,
+          task,
+          (date, field, value) => {
+            handleUpdateDailyDetail(channelName, monthStr, date, field as keyof DailyPerformanceData, value);
+          }
+        );
+        console.log(`[App] Busca diária concluída para ${channelName}`);
+      } catch (e) {
+        console.error(`[App] Erro na busca diária para ${channelName}:`, e);
+      }
+    } else {
+      console.warn(`[App] Nenhuma task Ploomes encontrada para o canal: ${channelName}`);
     }
   };
 

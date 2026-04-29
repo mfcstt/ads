@@ -122,5 +122,7 @@ export function usePloomesSync(
     };
 
     runSync();
+    const interval = setInterval(runSync, 600000); // 10 min
+    return () => clearInterval(interval);
   }, [loadStatus, data.length]);
 }
